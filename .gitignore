@@ -1,0 +1,10 @@
+.ccsproject
+.cproject
+.project
+.settings
+Debug
+Release
+fb.h
+project0_ccs.cmd
+target_config.ccxml
+startup_ccs.c

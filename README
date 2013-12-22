@@ -1,0 +1,26 @@
+StelVideo: video signal generator for the Stellaris LaunchPad.
+Copyright (C) 2013 Boris Gjenero <boris.gjenero@gmail.com>
+
+Building
+--------
+
+This was developed using Code Composer Studio Version 5.2.1.00018.
+Copy Stellaris LaunchPad Project 0 and then import these files.
+
+Graphics mode
+-------------
+
+Video data is output from SSI. Interrupts and DMA provide data to SSI.
+A timer triggers DMA which fills the SSI FIFO. Then an interrupt starts
+SSI DMA for the rest of the line. Another interrupt happens once per
+line, keeps track of vertical position, and performs setup for each line.
+
+The frame buffer is in 16 bit little endian format, with most significant
+bit being sent first. This means that compared to the usual arrangement,
+both bits in a byte and pairs of bytes are reversed. This conversion
+may be accomplished via img2fb.c.
+
+A frame buffer is not included. One may be created from any image.
+First, convert the image to .mono format using ImageMagick, and crop
+to 496x640. Then, supply that file as an argument to img2fb and redirect
+output to fb.h.
