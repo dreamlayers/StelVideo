@@ -219,7 +219,7 @@ void main(void)
 
     SSIDMAEnable(SSI0_BASE, SSI_DMA_TX);
 
-    /*** Set up PB2 for vertical sync ***/
+    /*** Set up PB3 for vertical sync ***/
 
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
 

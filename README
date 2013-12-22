@@ -7,6 +7,23 @@ Building
 This was developed using Code Composer Studio Version 5.2.1.00018.
 Copy Stellaris LaunchPad Project 0 and then import these files.
 
+Monitor Connections
+-------------------
+
+VGA sync inputs are TTL compatible, and compatible with LaunchPad levels.
+You can connect them directly.
+
+PB3: Vertical sync (DE-15 pin 14)
+PB6: Horizontal sync (DE-15 pin 13)
+
+Colour inputs are terminated with 75 ohm, and need 0 to 0.7V analog
+signals. A resistor is used to drop the voltage and prevent overloading
+the pin.
+
+PA5: Connect via 220 ohm resistor to a colour input. (Green is DE-15 pin 2.)
+
+GND: Connect to ground. (You can use DE-15 pin 5.)
+
 Graphics mode
 -------------
 
