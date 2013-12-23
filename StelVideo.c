@@ -23,6 +23,7 @@
 #include "inc/hw_gpio.h"
 #include "inc/hw_ints.h"
 #include "inc/hw_ssi.h"
+#include "driverlib/cpu.h"
 #include "driverlib/sysctl.h"
 #include "driverlib/pin_map.h"
 #include "driverlib/gpio.h"
@@ -66,7 +67,17 @@
 /*** Frame buffer ***/
 
 /* Include an image from an external file for testing and demonstration. */
-#include "fb.h"
+/* #include "fb.h" */
+
+/*** Text Mode ***/
+
+/* Next line of pixels for text mode is decoded into alternating buffers. */
+unsigned char linebuf[2][H_PIXELS/8];
+
+/* hexdump -ve '8/1 "0x%02x," "\n"' 8x16.chr */
+#include "text_font.h"
+
+unsigned char text_screen[(H_PIXELS/8) * (V_DISPLINES/16)];
 
 /*** Interrupt handler at start of line ***/
 
@@ -88,7 +99,8 @@ void Timer0AIntHandler(void)
     switch (vertstate) {
     case VERTM_IMAGE:
         if (vertidx < V_DISPLINES) {
-            unsigned char *ucSourceBuffer = &fb[H_PIXELS/8*vertidx];
+            /* unsigned char *ucSourceBuffer = &fb[H_PIXELS/8*vertidx]; */
+            unsigned char *ucSourceBuffer = &linebuf[vertidx&1][0];
             /* Set up timer triggered DMA for initial FIFO fill */
             uDMAChannelTransferSet(UDMA_CHANNEL_TMR0B | UDMA_PRI_SELECT,
                                    UDMA_MODE_AUTO, ucSourceBuffer,
@@ -131,6 +143,35 @@ void Timer0AIntHandler(void)
         break;
     }
     vertidx++;
+
+    /* Text mode character generator */
+    if (vertstate == VERTM_IMAGE) {
+        /* Current line of text. */
+        unsigned char *charsrc = &text_screen[(vertidx >> 4) * (H_PIXELS/8)];
+        /* Offset into font array corresponding to pixel line in font. */
+        const unsigned char *fontsrc = &text_font[vertidx & 15];
+        /* Which of two line buffers is currently being written. */
+        unsigned char *dest = &linebuf[vertidx&1][0];
+        int i;
+
+        /* Make use of time before DMA triggering, but make sure CPU
+         * is idle before DMA starts so that there is no jitter.
+         */
+#define CHARGEN_B4WFI 12
+        for (i = 0; i < CHARGEN_B4WFI; i += 2) {
+            dest[i] = fontsrc[charsrc[i + 1] << 4];
+            dest[i + 1] = fontsrc[charsrc[i] << 4];
+        }
+
+        if (vertidx != 0) {
+            CPUwfi();
+        }
+
+        for (i = CHARGEN_B4WFI; i < H_PIXELS/8; i += 2) {
+            dest[i] = fontsrc[charsrc[i + 1] << 4];
+            dest[i + 1] = fontsrc[charsrc[i] << 4];
+        }
+    }
 }
 
 /*** Interrupt handler for when timer triggered DMA completes ***/
@@ -263,6 +304,7 @@ void main(void)
      */
 
     TimerIntRegister(TIMER0_BASE, TIMER_A, Timer0AIntHandler);
+    IntPrioritySet(INT_TIMER0A, 0x20);
     IntMasterEnable();
     /* Note that in PWM mode the timeout interrupt can't be used,
      * and capture interrupts are needed.
@@ -283,6 +325,7 @@ void main(void)
 
     TimerLoadSet(TIMER0_BASE, TIMER_B, H_SYNCLEN+H_BACKPORCH);
     TimerIntRegister(TIMER0_BASE, TIMER_B, Timer0BIntSync);
+    IntPrioritySet(INT_TIMER0B, 0x00);
     TimerIntEnable(TIMER0_BASE, TIMER_TIMB_TIMEOUT);
     IntEnable(INT_TIMER0B);
 
@@ -291,6 +334,12 @@ void main(void)
     timersync = 1;
 
     /*** Temporary main ***/
+
+    /* Fill text screen */
+    int i;
+    for (i = 0; i < sizeof(text_screen); i++) {
+        text_screen[i] = i & 0xFF;
+    }
 
     /* This just indicates that the device is running and provides a
      * very crude indication of the amount of free CPU time.
