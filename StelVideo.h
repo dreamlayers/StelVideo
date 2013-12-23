@@ -18,7 +18,7 @@
 
 /* #define PART_LM4F120H5QR */
 
-extern unsigned char text_screen[];
+#include "rote/rote.h"
 
 void uart_init(void);
-void uart_run(void);
+void uart_run(RoteTerm *term);

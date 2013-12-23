@@ -36,21 +36,19 @@ void uart_init(void)
 
     GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
 
-    UARTConfigSetExpClk(UART0_BASE, SysCtlClockGet(), 9600,
+    UARTConfigSetExpClk(UART0_BASE, SysCtlClockGet(), 38400,
                         (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE |
                          UART_CONFIG_PAR_NONE));
 }
 
-void uart_run(void)
+void uart_run(RoteTerm *term)
 {
-    int i = 0;
     UARTCharPut(UART0_BASE, '>');
 
     while (1) {
-        unsigned char c;
+        char c;
         c = UARTCharGet(UART0_BASE);
         UARTCharPut(UART0_BASE, c);
-        text_screen[i++] = c;
-        if (i >= 100) i = 0;
+        rote_vt_inject(term, &c, 1);
     }
 }

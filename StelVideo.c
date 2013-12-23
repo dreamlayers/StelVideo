@@ -18,6 +18,7 @@
 
 /* #define PART_LM4F120H5QR */
 
+#include <stdbool.h>
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
 #include "inc/hw_gpio.h"
@@ -32,6 +33,7 @@
 #include "driverlib/ssi.h"
 #include "driverlib/udma.h"
 
+#include "rote/rote.h"
 #include "StelVideo.h"
 
 /*** Horizontal timings, using 80 MHz timer clock ***/
@@ -79,7 +81,13 @@ unsigned char linebuf[2][H_PIXELS/8];
 /* hexdump -ve '8/1 "0x%02x," "\n"' 8x16.chr */
 #include "text_font.h"
 
-unsigned char text_screen[(H_PIXELS/8) * (V_DISPLINES/16)];
+#define TEXT_ROWS (V_DISPLINES / 16)
+#define TEXT_COLUMNS (H_PIXELS / 8)
+
+RoteTerm *rote_screen;
+RoteCell *rote_rows[TEXT_ROWS];
+RoteCell rote_cells[TEXT_ROWS * TEXT_COLUMNS];
+bool rote_dirty[TEXT_ROWS];
 
 /*** Interrupt handler at start of line ***/
 
@@ -148,8 +156,11 @@ void Timer0AIntHandler(void)
 
     /* Text mode character generator */
     if (vertstate == VERTM_IMAGE) {
-        /* Current line of text. */
-        unsigned char *charsrc = &text_screen[(vertidx >> 4) * (H_PIXELS/8)];
+        /* Current line of text. This assumes a certain structure
+         * packing and alignment in cells!
+         */
+        unsigned char *charsrc =
+            (unsigned char *)(&rote_cells[(vertidx >> 4) * TEXT_COLUMNS]);
         /* Offset into font array corresponding to pixel line in font. */
         const unsigned char *fontsrc = &text_font[vertidx & 15];
         /* Which of two line buffers is currently being written. */
@@ -161,17 +172,17 @@ void Timer0AIntHandler(void)
          */
 #define CHARGEN_B4WFI 12
         for (i = 0; i < CHARGEN_B4WFI; i += 2) {
-            dest[i] = fontsrc[charsrc[i + 1] << 4];
-            dest[i + 1] = fontsrc[charsrc[i] << 4];
+            dest[i] = fontsrc[charsrc[(i + 1) * 2] << 4];
+            dest[i + 1] = fontsrc[charsrc[i * 2] << 4];
         }
 
         if (vertidx != 0) {
             CPUwfi();
         }
 
-        for (i = CHARGEN_B4WFI; i < H_PIXELS/8; i += 2) {
-            dest[i] = fontsrc[charsrc[i + 1] << 4];
-            dest[i + 1] = fontsrc[charsrc[i] << 4];
+        for (i = CHARGEN_B4WFI; i < TEXT_COLUMNS; i += 2) {
+            dest[i] = fontsrc[charsrc[(i + 1) * 2] << 4];
+            dest[i + 1] = fontsrc[charsrc[i * 2] << 4];
         }
     }
 }
@@ -335,8 +346,11 @@ void main(void)
     TimerSynchronize(TIMER0_BASE, TIMER_0A_SYNC | TIMER_0B_SYNC);
     timersync = 1;
 
+    rote_screen = rote_vt_create(TEXT_ROWS, TEXT_COLUMNS,
+                                 rote_rows, rote_cells, rote_dirty);
+
     uart_init();
-    uart_run();
+    uart_run(rote_screen);
 
 #if 0
     /*** Temporary main ***/
