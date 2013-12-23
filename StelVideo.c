@@ -32,6 +32,8 @@
 #include "driverlib/ssi.h"
 #include "driverlib/udma.h"
 
+#include "StelVideo.h"
+
 /*** Horizontal timings, using 80 MHz timer clock ***/
 
 /*
@@ -333,6 +335,10 @@ void main(void)
     TimerSynchronize(TIMER0_BASE, TIMER_0A_SYNC | TIMER_0B_SYNC);
     timersync = 1;
 
+    uart_init();
+    uart_run();
+
+#if 0
     /*** Temporary main ***/
 
     /* Fill text screen */
@@ -360,4 +366,5 @@ void main(void)
                      RED_LED | BLUE_LED | GREEN_LED, BLUE_LED);
         SysCtlDelay(2000000);
     }
+#endif
 }
